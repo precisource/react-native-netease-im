@@ -51,6 +51,8 @@ dependencies {
 `android/app/src/main/java/<你的包名>/MainActivity.java`
 
 ```
+import android.os.Bundle; // 如果已导入了可以忽略
+import android.support.annotation.NonNull;  // 如果已导入了可以忽略
 import com.netease.im.uikit.permission.MPermission;
 import com.netease.im.RNNeteaseImModule;
 import com.netease.im.ReceiverMsgParser;
@@ -105,7 +107,7 @@ public class MainApplication extends Application implements ReactApplication {
   public void onCreate() {
     //初始化方法appId以及appKey在小米开放平台获取，小米推送证书名称在网易云信后台设置
     IMApplication.setDebugAble(BuildConfig.DEBUG);
-    IMApplication.init(this, MainActivity.class,R.drawable.ic_stat_notify_msg,new    IMApplication.MiPushConfig("小米推送证书名称","小米推送appId","小米推送的appKey"));
+    IMApplication.init(this, MainActivity.class,R.drawable.ic_stat_notify_msg,new IMApplication.MiPushConfig("小米推送证书名称","小米推送appId","小米推送的appKey"));
    ...
   }
 }
@@ -114,17 +116,19 @@ public class MainApplication extends Application implements ReactApplication {
 
 ### 3.工程配置
 #### iOS配置
+如果ios目录下没有Podfile文件，先在ios目录下执行pod init，然后编辑Podfile
 install with CocoaPods
 ```
-pod 'NIMSDK'
+pod 'SDWebImage', '~>4.0.0'
+pod 'NIMSDK', '4.1.0'
 pod 'SSZipArchive', '~> 1.2'
 pod 'Reachability', '~> 3.1.1'
 pod 'CocoaLumberjack', '~> 2.0.0-rc2'
-pod 'FMDB', '~>2.5' 
+pod 'FMDB', '~>2.5'
 ```
 Run `pod install`
 
-在工程target的`Build Phases->Link Binary with Libraries`中加入`、libsqlite3.tbd、libc++、libz.tbd、CoreTelephony.framework`
+在工程target的`Build Phases->Link Binary with Libraries`中加入`、libsqlite3.0.tbd、libc++.tbd、libz.tbd、CoreTelephony.framework、AVFoundation.framework、CoreMedia.framework、CoreMotion.framework`
 
 
 
@@ -132,7 +136,7 @@ Run `pod install`
 
 ```
 ...
-#import <NIMSDK/NIMS
+#import <NIMSDK/NIMSDK.h>
 #import "NTESSDKConfigDelegate.h"
 @interface AppDelegate ()
 @property (nonatomic,strong) NTESSDKConfigDelegate *sdkConfigDelegate;
@@ -194,11 +198,13 @@ UIUserNotificationSettings *settings = [UIUserNotificationSettings settingsForTy
   [[UIApplication sharedApplication] setApplicationIconBadgeNumber:count];
 }
 ```
+如果RN中安装了react-native-permissions组件，则iOS编译时会遇到`duplicate symbols for architecture`错误。改正如下：
+在工程target的`Build Phases->Link Binary with Libraries`移除`libReactNativePermissions.a`
 
 #### Android配置
 
 在`android/app/build.gradle`里，defaultConfig栏目下添加如下代码：
-
+`multiDexEnabled true`
 
 在`AndroidManifest.xml`里，添加如下代码：
 ```
