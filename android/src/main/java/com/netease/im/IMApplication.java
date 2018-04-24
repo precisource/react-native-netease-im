@@ -83,6 +83,14 @@ public class IMApplication {
     private static ImageLoaderKit imageLoaderKit;
     private static StatusBarNotificationConfig statusBarNotificationConfig;
 
+    // app key
+    private static String appKey = null;
+
+    // 设置AppKey，在init之前调用
+    public static void setAppKey(String ak){
+        appKey = ak;
+    }
+
     public static void init(Context context, Class mainActivityClass, @DrawableRes int notify_msg_drawable_id, MiPushConfig miPushConfig) {
         IMApplication.context = context.getApplicationContext();
         IMApplication.mainActivityClass = mainActivityClass;
@@ -154,6 +162,10 @@ public class IMApplication {
 
     private static SDKOptions getOptions(Context context) {
         SDKOptions options = new SDKOptions();
+
+        if(appKey != null){
+            options.appKey = appKey;
+        }
 
         // 如果将新消息通知提醒托管给SDK完成，需要添加以下配置。
         initStatusBarNotificationConfig(options, context);
