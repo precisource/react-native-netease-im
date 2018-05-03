@@ -178,11 +178,9 @@ public class RecentContactObserver {
         }
     }
 
-    int unreadNum = 0;
-
     public void refreshMessages(boolean unreadChanged) {
         sortRecentContacts(items);
-
+        int unreadNum = 0;
 
         if (unreadChanged) {
 
@@ -200,6 +198,7 @@ public class RecentContactObserver {
 //                callback.onUnreadCountChange(unreadNum);
 //            }
         }
+        ReactCache.emit(ReactCache.observeUnreadCountChange, Integer.toString(unreadNum));
         ReactCache.emit(ReactCache.observeRecentContact, ReactCache.createRecentList(items, unreadNum));
     }
 

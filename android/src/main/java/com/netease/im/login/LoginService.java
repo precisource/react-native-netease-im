@@ -123,7 +123,7 @@ public class LoginService {
                 DataCacheManager.buildDataCacheAsync();
                 SysMessageObserver.getInstance().loadMessages(false);
                 queryRecentContacts();
-                startSystemMsgUnreadCount();
+                // startSystemMsgUnreadCount();
                 return null;
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
