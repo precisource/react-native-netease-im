@@ -153,4 +153,36 @@
     }
 }
 
+//拨打通知
+-(void)setVideoCall:(NSDictionary *)status{
+    if (status) {
+        if (self.myBlock) {
+            self.myBlock(21, status);
+        }
+    }
+}
+//来电通知
+-(void)setVideoReceive:(NSDictionary *)status{
+    if (status) {
+        if (self.myBlock) {
+            self.myBlock(22, status);
+        }
+    }
+}
+//接听通知
+-(void)setVideoAccept:(NSDictionary *)status{
+    if (status) {
+        if (self.myBlock) {
+            self.myBlock(23, status);
+        }
+    }
+}
+//挂断通知
+-(void)setVideoHangup:(NSDictionary *)status{
+    if (status) {
+        if (self.myBlock) {
+            self.myBlock(24, status);
+        }
+    }
+}
 @end
