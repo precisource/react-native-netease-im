@@ -7,6 +7,7 @@
 //
 
 #import "DWCustomAttachmentDecoder.h"
+#import "DWCustomAttachment.h"
 
 @implementation DWCustomAttachmentDecoder
 

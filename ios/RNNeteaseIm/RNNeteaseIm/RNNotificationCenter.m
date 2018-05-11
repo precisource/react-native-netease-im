@@ -10,6 +10,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import "NSDictionary+NTESJson.h"
 #import "NIMMessageMaker.h"
+#import "DWCustomAttachment.h"
 #import "NIMModel.h"
 #import "ConversationViewController.h"
 @interface RNNotificationCenter () <NIMSystemNotificationManagerDelegate,NIMChatManagerDelegate>

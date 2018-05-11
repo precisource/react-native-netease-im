@@ -8,6 +8,7 @@
 
 #import "NIMViewController.h"
 #import "ContactViewController.h"
+#import "DWCustomAttachment.h"
 
 @interface NIMViewController ()<NIMLoginManagerDelegate,NIMConversationManagerDelegate>{
 //    BOOL isLoginFailed;
