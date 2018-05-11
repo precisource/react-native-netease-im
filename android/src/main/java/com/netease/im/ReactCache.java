@@ -891,7 +891,7 @@ public class ReactCache {
                 if (attachment instanceof ImageAttachment) {
                     ImageAttachment imageAttachment = (ImageAttachment) attachment;
                     if (item.getDirect() == MsgDirectionEnum.Out) {
-                        imageObj.putString(MessageConstant.MediaFile.THUMB_PATH, imageAttachment.getPath());
+                        imageObj.putString(MessageConstant.MediaFile.THUMB_PATH, imageAttachment.getUrl());
                     } else {
                         imageObj.putString(MessageConstant.MediaFile.THUMB_PATH, imageAttachment.getThumbPath());
                     }
