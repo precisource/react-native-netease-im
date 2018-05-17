@@ -12,7 +12,7 @@
 
 #define TAG "RNVideoChatManager"
 
-@interface RNVideoChatManager ()<NIMSystemNotificationManagerDelegate>
+@interface RNVideoChatManager ()<NIMSystemNotificationManagerDelegate,NIMNetCallManagerDelegate>
 
 @property (nonatomic) RNVideoChatView  *vcv;
 
@@ -31,7 +31,7 @@ RCT_EXPORT_VIEW_PROPERTY(height, NSInteger);
 - (UIView *)view
 {
     NSLog(@"%s view:%@",TAG,self);
-    _vcv = [[RNVideoChatView alloc] initWithFrame: CGRectMake(0, 0, 200, 350)];
+    _vcv = [[RNVideoChatView alloc] initWithFrame: CGRectMake(0, 0, 400, 550)];
     return _vcv;
 }
 
@@ -43,11 +43,65 @@ RCT_EXPORT_VIEW_PROPERTY(height, NSInteger);
 - (instancetype)init{
     if (self = [super init]) {
         [[NIMSDK sharedSDK].systemNotificationManager addDelegate:self];
+        [[NIMAVChatSDK sharedSDK].netCallManager addDelegate:self];
     }
+    //_vcv = [[RNVideoChatView alloc] initWithFrame: CGRectMake(0, 0, 200, 350)];
     [self setSendState];
     [[NSNotificationCenter defaultCenter]addObserver:self selector:@selector(clickObserveNotification:) name:@"ObservePushNotification" object:nil];
     
     return self;
+}
+
+#pragma mark -NIMNetCallManagerDelegate
+-(void)onReceive:(UInt64)callID from:(NSString *)caller type:(NIMNetCallMediaType)type message:(NSString *)extendMessage{
+    NSLog(@"onReceive:%@", caller);
+    if ([NIMAVChatSDK sharedSDK].netCallManager.currentCallID > 0)
+    {
+        [[NIMAVChatSDK sharedSDK].netCallManager control:callID type:NIMNetCallControlTypeBusyLine];
+        return;
+    };
+    
+    // 通知给js
+//    NIMModel *model = [NIMModel initShareMD];
+//    NSDictionary *dd = @{@"status": @YES, @"callid": [NSString stringWithFormat:@"%llu",callID], @"from": caller};
+//    model.videoReceive = dd;
+    
+    
+    // 发送给推送
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+    NSDictionary *dict = @{@"caller": caller, @"callid":[NSString stringWithFormat:@"%llu",callID]};
+    NSDictionary *dataDict = @{@"type":@"21",@"data":@{@"dict": dict,@"timestamp":[NSString stringWithFormat:@"%f",timestamp], @"sessionId":[[NIMSDK sharedSDK].loginManager currentAccount],@"sessionType":[NSString stringWithFormat:@"%@",@"视频请求"]}};
+    
+    
+    NSString *content = [self jsonStringWithDictionary:dataDict];
+    NIMSession *session = [NIMSession session:[[NIMSDK sharedSDK].loginManager currentAccount] type:NIMSessionTypeP2P];
+    NIMCustomSystemNotification *notifi = [[NIMCustomSystemNotification alloc]initWithContent:content];
+    notifi.sendToOnlineUsersOnly = NO;
+    NIMCustomSystemNotificationSetting *setting = [[NIMCustomSystemNotificationSetting alloc]init];
+    setting.shouldBeCounted = YES;
+    setting.apnsEnabled = YES;
+    setting.apnsWithPrefix = YES;
+    notifi.setting = setting;
+    notifi.apnsContent = @"通话请求";
+    notifi.apnsPayload = dataDict;
+    
+    [[NIMSDK sharedSDK].systemNotificationManager sendCustomNotification:notifi toSession:session completion:^(NSError *error) {
+        NSLog(@"notifi %@", error);
+    }];
+}
+// dict字典转json字符串
+- (NSString *)jsonStringWithDictionary:(NSDictionary *)dict
+{
+    if (dict && 0 != dict.count)
+    {
+        NSError *error = nil;
+        // NSJSONWritingOptions 是"NSJSONWritingPrettyPrinted"的话有换位符\n；是"0"的话没有换位符\n。
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:dict options:0 error:&error];
+        NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+        return jsonString;
+    }
+    
+    return nil;
 }
 
 - (void)clickObserveNotification:(NSNotification *)noti{
@@ -176,7 +230,7 @@ RCT_EXPORT_METHOD(hangup){
 
 -(void)setSendState{
     NIMModel *mod = [NIMModel initShareMD];
-    mod.myBlock = ^(NSInteger index, id param) {
+    mod.avChatBlock = ^(NSInteger index, id param) {
         switch (index) {
             case 21:
                 //拨打通知

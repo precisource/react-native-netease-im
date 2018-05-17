@@ -16,7 +16,7 @@
 
 @property (nonatomic,strong) IBOutlet UIImageView *remoteView;
 
-//@property (nonatomic,strong) IBOutlet UIView   *localView;
+@property (nonatomic,strong) IBOutlet UIView   *smallView;
 
 @property (nonatomic,strong) IBOutlet UIButton *hungUpBtn;   //挂断按钮
 

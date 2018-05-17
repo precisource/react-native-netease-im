@@ -103,9 +103,15 @@
     // 初始化remoteView
     _remoteView = [[UIImageView alloc] init];
     _remoteView.frame = CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height);
+    _remoteView.backgroundColor = [UIColor greenColor];
     [self.view setAutoresizesSubviews:YES];
     [self.view addSubview: _remoteView];
     [self initUI];
+    
+    _smallView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 100, 100)];
+    _smallView.backgroundColor = [UIColor redColor];
+    [_remoteView addSubview:_smallView];
+    self.localView = _smallView;
     
     NSLog(@"%s viewDidLoad:%@",TAG,self.view);
     __weak typeof(self) wself = self;
@@ -291,66 +297,34 @@
 }
 
 - (void)startByCaller{
-    NSLog(@"%s startByCaller",TAG);
-    __weak typeof(self) wself = self;
-    if (!wself) {
-        return;
-    }
-    wself.callInfo.isStart = YES;
-    
-    
+    self.callInfo.isStart = YES;
     NSArray *callees = [NSArray arrayWithObjects:self.callInfo.callee, nil];
     
-    //先初始化 option 参数
     NIMNetCallOption *option = [[NIMNetCallOption alloc] init];
-    option.apnsInuse = NO; // 请求是否附带推送
-//    option.extendMessage = @"音视频请求扩展信息";
-//    option.apnsContent = @"通话请求";
-//    option.apnsContent = [NSString stringWithFormat:@"%@请求", wself.callInfo.callType == NIMNetCallTypeAudio ? @"网络通话" : @"视频聊天"];
-//    option.apnsSound = @"video_chat_tip_receiver.aac";
+    option.extendMessage = @"音视频请求扩展信息";
+    option.apnsContent = [NSString stringWithFormat:@"%@请求", self.callInfo.callType == NIMNetCallTypeAudio ? @"网络通话" : @"视频聊天"];
+    option.apnsSound = @"video_chat_tip_receiver.aac";
+    [self fillUserSetting:option];
     
-    //指定 option 中的 videoCaptureParam 参数
-    NIMNetCallVideoCaptureParam *param = [[NIMNetCallVideoCaptureParam alloc] init];
-    //清晰度480P
-    param.preferredVideoQuality = NIMNetCallVideoQuality480pLevel;
-    //裁剪类型 NO
-    param.videoCrop  = NIMNetCallVideoCropNoCrop;
-    //打开初始为前置摄像头
-    param.startWithBackCamera = NO;
+    option.videoCaptureParam.startWithCameraOn = (self.callInfo.callType == NIMNetCallTypeVideo);
     
-    option.videoCaptureParam = param;
+    __weak typeof(self) wself = self;
     
-    //指定通话类型为 视频通话
-    NIMNetCallMediaType type = NIMNetCallMediaTypeVideo;
-    
-    NSLog(@"%s startByCaller:%@,%@",TAG, callees, option);
-    [[NIMAVChatSDK sharedSDK].netCallManager start:callees type:type option:option completion:^(NSError *error, UInt64 callID) {
+    [[NIMAVChatSDK sharedSDK].netCallManager start:callees type:NIMNetCallMediaTypeVideo option:option completion:^(NSError *error, UInt64 callID) {
         if (!error && wself) {
-            //发起成功，给一个callID
             wself.callInfo.callID = callID;
             wself.chatRoom = [[NSMutableArray alloc]init];
-            
-            // 通知给js
-            NIMModel *model = [NIMModel initShareMD];
-            NSDictionary *dd = @{@"status": @YES, @"callid": [NSString stringWithFormat:@"%llu",callID], @"to": wself.callInfo.callee};
-            model.videoCall = dd;
-            
-            
-            //十秒之后如果还是没有收到对方响应的control字段，则自己发起一个假的control，用来激活铃声并自己先进入聊天室
+            //十秒之后如果还是没有收到对方响应的control字段，则自己发起一个假的control，用来激活铃声并自己先进入房间
             NSTimeInterval delayTime = 10;
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayTime * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                 [wself onControl:callID from:wself.callInfo.callee type:NIMNetCallControlTypeFeedabck];
             });
-            [wself startInterface];
-
         }else{
             if (error) {
-                NSLog(@"%s startByCaller error:%@",TAG, error);
-                
+               
             }else{
-                //说明在start的过程中把页面关了
+                //说明在start的过程中把页面关了。。
                 [[NIMAVChatSDK sharedSDK].netCallManager hangup:callID];
-                
             }
             [wself dismiss:nil];
         }
@@ -372,44 +346,22 @@
     // 被叫繁忙
 }
 
-#pragma mark -NIMNetCallManagerDelegate
-- (void)onReceive:(UInt64)callID from:(NSString *)caller type:(NIMNetCallType)type message:(nullable NSString *)extendMessage{
-    NSLog(@"%s onReceive:%@",TAG, caller);
-    if ([NIMAVChatSDK sharedSDK].netCallManager.currentCallID > 0)
-    {
-        [[NIMAVChatSDK sharedSDK].netCallManager control:callID type:NIMNetCallControlTypeBusyLine];
-        return;
-    };
-    
-    // 通知给js
+//#pragma mark -NIMNetCallManagerDelegate
+//- (void)onReceive:(UInt64)callID from:(NSString *)caller type:(NIMNetCallType)type message:(nullable NSString *)extendMessage{
+//    NSLog(@"%s onReceive:%@",TAG, caller);
+//    if ([NIMAVChatSDK sharedSDK].netCallManager.currentCallID > 0)
+//    {
+//        [[NIMAVChatSDK sharedSDK].netCallManager control:callID type:NIMNetCallControlTypeBusyLine];
+//        return;
+//    };
+//
+//    // 通知给js
 //    NIMModel *model = [NIMModel initShareMD];
 //    NSDictionary *dd = @{@"status": @YES, @"callid": [NSString stringWithFormat:@"%llu",callID], @"from": caller};
 //    model.videoReceive = dd;
-    
-    
-    // 发送给推送
-    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
-    NSDictionary *dict = @{@"caller": caller, @"callid":[NSString stringWithFormat:@"%llu",callID]};
-    NSDictionary *dataDict = @{@"type":@"21",@"data":@{@"dict": dict,@"timestamp":[NSString stringWithFormat:@"%f",timestamp], @"sessionId":[[NIMSDK sharedSDK].loginManager currentAccount],@"sessionType":[NSString stringWithFormat:@"%@",@"视频请求"]}};
-    
-    
-    NSString *content = [self jsonStringWithDictionary:dataDict];
-    NIMSession *session = [NIMSession session:[[NIMSDK sharedSDK].loginManager currentAccount] type:NIMSessionTypeP2P];
-    NIMCustomSystemNotification *notifi = [[NIMCustomSystemNotification alloc]initWithContent:content];
-    notifi.sendToOnlineUsersOnly = NO;
-    NIMCustomSystemNotificationSetting *setting = [[NIMCustomSystemNotificationSetting alloc]init];
-    setting.shouldBeCounted = YES;
-    setting.apnsEnabled = YES;
-    setting.apnsWithPrefix = YES;
-    notifi.setting = setting;
-    notifi.apnsContent = @"通话请求";
-    notifi.apnsPayload = dataDict;
-    
-    [[NIMSDK sharedSDK].systemNotificationManager sendCustomNotification:notifi toSession:session completion:^(NSError *error) {
-        NSLog(@"%s, nitifi %@", TAG, error);
-    }];
-    
-}
+//
+//}
+
 - (void)afterCheckService{
     if (self.callInfo.isStart)
     {
@@ -485,7 +437,6 @@
     [[NIMAVChatSDK sharedSDK].netCallManager hangup:self.callInfo.callID];
     self.chatRoom = nil;
     [self dismiss:nil];
-    
 }
 
 - (void)onHangup:(UInt64)callID
@@ -500,17 +451,33 @@
         else {
             [self dismiss:nil];
         }
+    }else if(self.callInfo.callID == 0){
+        [self dismiss:nil];
     }
 }
 
 - (void)response:(BOOL)accept{
     __weak typeof(self) wself = self;
     NSLog(@"%s response:%d",TAG,accept);
+//    NIMNetCallOption *option = [[NIMNetCallOption alloc] init];
+//    option.webrtcCompatible = YES;
+//    option.serverRecordAudio = YES;
+//    option.serverRecordVideo = YES;
+//    //指定 option 中的 videoCaptureParam 参数
+//    NIMNetCallVideoCaptureParam *param = [[NIMNetCallVideoCaptureParam alloc] init];
+//    //清晰度480P
+//    param.preferredVideoQuality = NIMNetCallVideoQuality480pLevel;
+//    //裁剪类型 NO
+//    param.videoCrop  = NIMNetCallVideoCropNoCrop;
+//    //打开初始为前置摄像头
+//    param.startWithBackCamera = NO;
+//    option.videoCaptureParam = param;
     NIMNetCallOption *option = [[NIMNetCallOption alloc] init];
-    
+    [self fillUserSetting:option];
     [[NIMAVChatSDK sharedSDK].netCallManager response:self.callInfo.callID accept:accept option:option completion:^(NSError *error, UInt64 callID) {
         if (!error) {
             [wself onCalling];
+            wself.callInfo.isStart = YES;
             [wself.chatRoom addObject:wself.callInfo.callee];
             NSTimeInterval delay = 10.f; //10秒后判断下聊天室
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -581,7 +548,7 @@
         
         //把本地view设置在对方的view之上
 //        [self.remoteGLView addSubview:self.localView];
-        //        [self.remoteGLView addSubview:dismissBtn];
+//                [self.remoteGLView addSubview:dismissBtn];
     }
 
 }
@@ -718,55 +685,34 @@
     return nil;
 }
 
-//#pragma mark - Ring
-////铃声 - 正在呼叫请稍后
-//- (void)playConnnetRing{
-//    [self.player stop];
-//    NSURL *url = [[NSBundle mainBundle] URLForResource:@"video_connect_chat_tip_sender" withExtension:@"aac"];
-//    self.player = [[AVAudioPlayer alloc] initWithContentsOfURL:url error:nil];
-//    [self.player play];
-//}
-//
-////铃声 - 对方暂时无法接听
-//- (void)playHangUpRing{
-//    [self.player stop];
-//    NSURL *url = [[NSBundle mainBundle] URLForResource:@"video_chat_tip_HangUp" withExtension:@"aac"];
-//    self.player = [[AVAudioPlayer alloc] initWithContentsOfURL:url error:nil];
-//    [self.player play];
-//}
-//
-////铃声 - 对方正在通话中
-//- (void)playOnCallRing{
-//    [self.player stop];
-//    NSURL *url = [[NSBundle mainBundle] URLForResource:@"video_chat_tip_OnCall" withExtension:@"aac"];
-//    self.player = [[AVAudioPlayer alloc] initWithContentsOfURL:url error:nil];
-//    [self.player play];
-//}
-//
-////铃声 - 对方无人接听
-//- (void)playTimeoutRing{
-//    [self.player stop];
-//    NSURL *url = [[NSBundle mainBundle] URLForResource:@"video_chat_tip_onTimer" withExtension:@"aac"];
-//    self.player = [[AVAudioPlayer alloc] initWithContentsOfURL:url error:nil];
-//    [self.player play];
-//}
-//
-////铃声 - 接收方铃声
-//- (void)playReceiverRing{
-//    [self.player stop];
-//    NSURL *url = [[NSBundle mainBundle] URLForResource:@"video_chat_tip_receiver" withExtension:@"aac"];
-//    self.player = [[AVAudioPlayer alloc] initWithContentsOfURL:url error:nil];
-//    self.player.numberOfLoops = 20;
-//    [self.player play];
-//}
-//
-////铃声 - 拨打方铃声
-//- (void)playSenderRing{
-//    [self.player stop];
-//    NSURL *url = [[NSBundle mainBundle] URLForResource:@"video_chat_tip_sender" withExtension:@"aac"];
-//    self.player = [[AVAudioPlayer alloc] initWithContentsOfURL:url error:nil];
-//    self.player.numberOfLoops = 20;
-//    [self.player play];
-//}
+- (void)fillUserSetting:(NIMNetCallOption *)option
+{
+    option.autoRotateRemoteVideo = [[NTESBundleSetting sharedConfig] videochatAutoRotateRemoteVideo];
+    option.webrtcCompatible = YES;
+    option.serverRecordAudio     = [[NTESBundleSetting sharedConfig] serverRecordAudio];
+    option.serverRecordVideo     = [[NTESBundleSetting sharedConfig] serverRecordVideo];
+    option.preferredVideoEncoder = [[NTESBundleSetting sharedConfig] perferredVideoEncoder];
+    option.preferredVideoDecoder = [[NTESBundleSetting sharedConfig] perferredVideoDecoder];
+    option.videoMaxEncodeBitrate = [[NTESBundleSetting sharedConfig] videoMaxEncodeKbps] * 1000;
+    option.autoDeactivateAudioSession = [[NTESBundleSetting sharedConfig] autoDeactivateAudioSession];
+    option.audioDenoise = [[NTESBundleSetting sharedConfig] audioDenoise];
+    option.voiceDetect = [[NTESBundleSetting sharedConfig] voiceDetect];
+    option.audioHowlingSuppress = [[NTESBundleSetting sharedConfig] audioHowlingSuppress];
+    option.preferHDAudio =  [[NTESBundleSetting sharedConfig] preferHDAudio];
+    option.scene = [[NTESBundleSetting sharedConfig] scene];
+    
+    NIMNetCallVideoCaptureParam *param = [[NIMNetCallVideoCaptureParam alloc] init];
+    [self fillVideoCaptureSetting:param];
+    option.videoCaptureParam = param;
+    
+}
+
+- (void)fillVideoCaptureSetting:(NIMNetCallVideoCaptureParam *)param
+{
+    param.preferredVideoQuality = [[NTESBundleSetting sharedConfig] preferredVideoQuality];
+    param.videoCrop  = [[NTESBundleSetting sharedConfig] videochatVideoCrop];
+    param.startWithBackCamera   = [[NTESBundleSetting sharedConfig] startWithBackCamera];
+    
+}
 
 @end

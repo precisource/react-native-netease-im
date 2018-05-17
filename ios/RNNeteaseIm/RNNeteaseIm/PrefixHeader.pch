@@ -16,6 +16,8 @@
 #import <CocoaLumberjack/CocoaLumberjack.h>
 #import <NIMAVChat/NIMAVChat.h>
 #import "NIMKit.h"
+#import "NIMObject.h"
+#import "DWCustomAttachment.h"
 #define NTESNotifyID        @"id"
 #define NTESCustomContent  @"content"
 

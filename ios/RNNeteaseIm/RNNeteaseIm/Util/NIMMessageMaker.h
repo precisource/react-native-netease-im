@@ -7,8 +7,6 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "NIMObject.h"
-#import "DWCustomAttachment.h"
 #import <NIMSDK/NIMSDK.h>
 
 @class NIMKitLocationPoint;
